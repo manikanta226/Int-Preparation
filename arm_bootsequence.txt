@@ -1,0 +1,59 @@
+ref : https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/arm/Booting
+
+
+
+A hardware bootloader generally called as Boot Rom is provided by vendor (pre-loaded into the processors’ internal ROM).This is hardwired at the manufacturing time. After a power on reset, that causes the processor core to jump to the reset vector, Boot Rom is the first code to execute in the processor.
+
+Responsibilities of Bootrom
+
+Bootrom performs the essential initialization including programming the clocks, stacks, interrupt set up etc.
+Bootrom will detect the boot media using a system register. This is to determine where to find the first level bootloader. A particular sequence of probing for boot media is followed as defined by the manufacturer. This includes the order of looking for bootloader in external NOR/NAND flash, or probing for some specific characters on UART /USB for establishing connection with downloader to download the binary in flash. If no bootloader is found in any external memory, bootrom listens for a download request on UART/USB port to start the download process.
+Thus during the probing process, if the flash has already been programmed,  software bootloader will be detected to be available in flash , if not so –it will be downloaded to the flash by bootrom.(This probing sequence will generally assign higher priority to external memory , so if bootloader is detected to be present  in memory, it won't proceed to downloading the image again)
+For platforms using NAND flash , the bootrom will load this boot loader to internal RAM and set the program counter at the load address of the SW bootloader in RAM.
+ For platforms using NOR flash, control is transferred to the external flash (NOR flash is XiP- Execute in Place).
+There is another point to be noted here regarding bad block management support in Boot ROM. If sw bootloader is residing only in block 0 of flash, no Bad block Management is required in Boot ROM as block 0 is guaranteed to be good by the manufacturer but if sw bootloader resides in block 1 onwards or is large enough to span multiple blocks, then ,Boot ROM needs to include bad block handling. Bad block management will include relocating the contents of the block in flash that goes bad in the process of accessing the block to a new block and updating the bad block/relocation table of the platform.
+
+
+1. SOC Boot loader (Boot Rom)
+	-> resides at reset vector
+	-> system inititalization
+		-> cpu clocks, cpu cache, static memory, Boot device controller (NAND , NOR, SD/MMC)
+	-> setsup watchdog timer
+	-> Load the FSBL (bootloader) ito pre configured address space of static memory. control transfers to it.
+2. First stagebootloader
+	-> Loaded in to static ram from storage
+	-> Initialize DRAm controller
+	-> Load SSBL into memory
+3. Second stagebootloader
+	-> resides at on board storage
+	-> loaded into dynamic memory by either FSBL or BootRom
+	-> Initializes 
+		console
+		storage device controller
+		n/w controller
+		Allocate address space
+	-> fetch and load the kernel, DT from pre configured storage to memory
+	-> setup kernel parameters
+	-> 
+4. Kernel boot
+	-> Boot strap
+		Initialize mmu
+		allocate page list
+		allocate page frame tables
+		setup TLB
+		setup caches
+		relocate kernel image
+		invoke start function of kernel proper
+	-> vmlinux
+		Init memory manager
+		Init console
+		setup timer subsytem
+		init interrupt subsytem
+		init platform devices
+		init service subsystems
+		mount rootfs
+		start innit thread / kernel thread
+	-> init thread 
+		initializes first user program
+5. userspace
+	
