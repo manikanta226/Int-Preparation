@@ -1,0 +1,117 @@
+They determine the initialization order of built-in modules. Drivers will use device_initcall (or module_init; see below) most of the time. Early initialization (early_initcall) is normally used by architecture-specific code to initialize hardware subsystems (power management, DMAs, etc.) before any real driver gets initialized.
+
+Technical stuff for understanding below
+Look at init/main.c. After a few architecture-specific initialization done by code in arch/<arch>/boot and arch/<arch>/kernel, the portable start_kernel function will be called. Eventually, in the same file, do_basic_setup is called:
+
+/*
+ * Ok, the machine is now initialized. None of the devices
+ * have been touched yet, but the CPU subsystem is up and
+ * running, and memory and process management works.
+ *
+ * Now we can finally start doing some real work..
+ */
+static void __init do_basic_setup(void)
+{
+    cpuset_init_smp();
+    usermodehelper_init();
+    shmem_init();
+    driver_init();
+    init_irq_proc();
+    do_ctors();
+    usermodehelper_enable();
+    do_initcalls();
+}
+
+which ends with a call to do_initcalls:
+
+
+static initcall_t *initcall_levels[] __initdata = {
+    __initcall0_start,
+    __initcall1_start,
+    __initcall2_start,
+    __initcall3_start,
+    __initcall4_start,
+    __initcall5_start,
+    __initcall6_start,
+    __initcall7_start,
+    __initcall_end,
+};
+
+/* Keep these in sync with initcalls in include/linux/init.h */
+static char *initcall_level_names[] __initdata = {
+    "early",
+    "core",
+    "postcore",
+    "arch",
+    "subsys",
+    "fs",
+    "device",
+    "late",
+};
+
+static void __init do_initcall_level(int level)
+{
+    extern const struct kernel_param __start___param[], __stop___param[];
+    initcall_t *fn;
+
+    strcpy(static_command_line, saved_command_line);
+    parse_args(initcall_level_names[level],
+           static_command_line, __start___param,
+           __stop___param - __start___param,
+           level, level,
+           &repair_env_string);
+
+    for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
+        do_one_initcall(*fn);
+}
+
+static void __init do_initcalls(void)
+{
+    int level;
+
+    for (level = 0; level < ARRAY_SIZE(initcall_levels) - 1; level++)
+        do_initcall_level(level);
+}
+
+
+
+You can see the names above with their associated index: early is 0, core is 1, etc. Each of those __initcall*_start entries point to an array of function pointers which get called one after the other. Those function pointers are the actual modules and built-in initialization functions, the ones you specify with module_init, early_initcall, etc.
+
+What determines which function pointer gets into which __initcall*_start array? The linker does this, using hints from the module_init and *_initcall macros. Those macros, for built-in modules, assign the function pointers to a specific ELF section.
+
+Example with module_init
+Considering a built-in module (configured with y in .config), module_init simply expands like this (include/linux/init.h):
+
+#define module_init(x)  __initcall(x);
+and then we follow this:
+
+#define __initcall(fn) device_initcall(fn)
+#define device_initcall(fn)             __define_initcall(fn, 6)
+So, now, module_init(my_func) means __define_initcall(my_func, 6). This is _define_initcall:
+
+#define __define_initcall(fn, id) \
+    static initcall_t __initcall_##fn##id __used \
+    __attribute__((__section__(".initcall" #id ".init"))) = fn
+which means, so far, we have:
+
+static initcall_t __initcall_my_func6 __used
+__attribute__((__section__(".initcall6.init"))) = my_func;
+Wow, lots of GCC stuff, but it only means that a new symbol is created, __initcall_my_func6, that's put in the ELF section named .initcall6.init, and as you can see, points to the specified function (my_func). Adding all the functions to this section eventually creates the complete array of function pointers, all stored within the .initcall6.init ELF section.
+
+Initialization example
+Look again at this chunk:
+
+for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
+    do_one_initcall(*fn);
+Let's take level 6, which represents all the built-in modules initialized with module_init. It starts from __initcall6_start, its value being the address of the first function pointer registered within the .initcall6.init section, and ends at __initcall7_start (excluded), incrementing each time with the size of *fn (which is an initcall_t, which is a void*, which is 32-bit or 64-bit depending on the architecture).
+
+do_one_initcall will simply call the function pointed to by the current entry.
+
+Within a specific initialization section, what determines why an initialization function is called before another is simply the order of the files within the Makefiles since the linker will concatenate the __initcall_* symbols one after the other in their respective ELF init. sections.
+
+This fact is actually used in the kernel, e.g. with device drivers (drivers/Makefile):
+
+# GPIO must come after pinctrl as gpios may need to mux pins etc
+obj-y                           += pinctrl/
+obj-y                           += gpio/
+tl;dr: the Linux kernel initialization mechanism is really beautiful, albeit highlight GCC-dependent.
