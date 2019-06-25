@@ -1,0 +1,214 @@
+reference : http://www.catb.org/esr/structure-packing/
+
+1. What are the advantages of structure padding?
+Ans. Variables put on machine-aligned addresses can be read or written in fewer assembly instructions — usually one. Thus, the compiler uses padding to optimize its access.
+
+2. Avoiding Structure Padding in C ?
+Ans. The only completely portable and reliable way to avoid structure padding is not to use real members in your struct at all. Use a single char array member, and define macros that access its contents:
+
+struct paddingless {
+    // char *p;
+    // double d;
+    // char c;
+
+#define OFFSET_P 0
+#define OFFSET_D (OFFSET_P + sizeof(char *))
+#define OFFSET_C (OFFSET_D + sizeof(double))    
+#define OFFSET_END (OFFSET_C + sizeof(char))    
+
+    char data[OFFSET_END];
+};
+
+3. How structure padding works ? 
+Ans. Inside a struct, each member's offset in memory is based on their size and alignment. Note that this is implementation specific
+
+E.g. if char takes 1 byte, short takes 2 bytes and int takes 4 bytes:
+
+structure Node{ 
+    char c1;  // 1 byte
+              // 1 byte padding (next member requires 2 byte alignment)
+    short s1; // 2 bytes
+    char c2;  // 1 byte
+              // 3 bytes padding (since next member requires 4 byte alignment)
+    int i1;   // 4 bytes
+};
+
+4. Padding vs packing ?
+Ans. Padding aligns structure members to "natural" address boundaries - say, int members would have offsets, which are mod(4) == 0 on 32-bit platform. Padding is on by default. It inserts the following "gaps" into your first structure:
+
+struct mystruct_A {
+    char a;
+    char gap_0[3]; /* inserted by compiler: for alignment of b */
+    int b;
+    char c;
+    char gap_1[3]; /* -"-: for alignment of the whole struct in an array */
+} x;
+Packing, on the other hand prevents compiler from doing padding - this has to be explicitly requested - under GCC it's __attribute__((__packed__)), so the following:
+
+struct __attribute__((__packed__)) mystruct_A {
+    char a;
+    int b;
+    char c;
+};
+would produce structure of size 6 on a 32-bit architecture.
+
+A note though - unaligned memory access is slower on architectures that allow it (like x86 and amd64), and is explicitly prohibited on strict alignment architectures like SPARC.
+
+
+
+
+Example :
+(for 64 bit system)
+
+memory_align.c:
+
+/**
+ * Memory align & padding - for struct.
+ * compile: gcc memory_align.c
+ * execute: ./a.out
+ */ 
+#include <stdio.h>
+
+// size is 8, 4 + 1, then round to multiple of 4 (int's size),
+struct stu_a {
+    int i;
+    char c;
+};
+
+// size is 16, 8 + 1, then round to multiple of 8 (long's size),
+struct stu_b {
+    long l;
+    char c;
+};
+
+// size is 24, l need padding by 4 before it, then round to multiple of 8 (long's size),
+struct stu_c {
+    int i;
+    long l;
+    char c;
+};
+
+// size is 16, 8 + 4 + 1, then round to multiple of 8 (long's size),
+struct stu_d {
+    long l;
+    int i;
+    char c;
+};
+
+// size is 16, 8 + 4 + 1, then round to multiple of 8 (double's size),
+struct stu_e {
+    double d;
+    int i;
+    char c;
+};
+
+// size is 24, d need align to 8, then round to multiple of 8 (double's size),
+struct stu_f {
+    int i;
+    double d;
+    char c;
+};
+
+// size is 4,
+struct stu_g {
+    int i;
+};
+
+// size is 8,
+struct stu_h {
+    long l;
+};
+
+// test - padding within a single struct,
+int test_struct_padding() {
+    printf("%s: %ld\n", "stu_a", sizeof(struct stu_a));
+    printf("%s: %ld\n", "stu_b", sizeof(struct stu_b));
+    printf("%s: %ld\n", "stu_c", sizeof(struct stu_c));
+    printf("%s: %ld\n", "stu_d", sizeof(struct stu_d));
+    printf("%s: %ld\n", "stu_e", sizeof(struct stu_e));
+    printf("%s: %ld\n", "stu_f", sizeof(struct stu_f));
+
+    printf("%s: %ld\n", "stu_g", sizeof(struct stu_g));
+    printf("%s: %ld\n", "stu_h", sizeof(struct stu_h));
+
+    return 0;
+}
+
+// test - address of struct,
+int test_struct_address() {
+    printf("%s: %ld\n", "stu_g", sizeof(struct stu_g));
+    printf("%s: %ld\n", "stu_h", sizeof(struct stu_h));
+    printf("%s: %ld\n", "stu_f", sizeof(struct stu_f));
+
+    struct stu_g g;
+    struct stu_h h;
+    struct stu_f f1;
+    struct stu_f f2;
+    int x = 1;
+    long y = 1;
+
+    printf("address of %s: %p\n", "g", &g);
+    printf("address of %s: %p\n", "h", &h);
+    printf("address of %s: %p\n", "f1", &f1);
+    printf("address of %s: %p\n", "f2", &f2);
+    printf("address of %s: %p\n", "x", &x);
+    printf("address of %s: %p\n", "y", &y);
+
+    // g is only 4 bytes itself, but distance to next struct is 16 bytes(on 64 bit system) or 8 bytes(on 32 bit system),
+    printf("space between %s and %s: %ld\n", "g", "h", (long)(&h) - (long)(&g));
+
+    // h is only 8 bytes itself, but distance to next struct is 16 bytes(on 64 bit system) or 8 bytes(on 32 bit system),
+    printf("space between %s and %s: %ld\n", "h", "f1", (long)(&f1) - (long)(&h));
+
+    // f1 is only 24 bytes itself, but distance to next struct is 32 bytes(on 64 bit system) or 24 bytes(on 32 bit system),
+    printf("space between %s and %s: %ld\n", "f1", "f2", (long)(&f2) - (long)(&f1));
+
+    // x is not a struct, and it reuse those empty space between struts, which exists due to padding, e.g between g & h,
+    printf("space between %s and %s: %ld\n", "x", "f2", (long)(&x) - (long)(&f2));
+    printf("space between %s and %s: %ld\n", "g", "x", (long)(&x) - (long)(&g));
+
+    // y is not a struct, and it reuse those empty space between struts, which exists due to padding, e.g between h & f1,
+    printf("space between %s and %s: %ld\n", "x", "y", (long)(&y) - (long)(&x));
+    printf("space between %s and %s: %ld\n", "h", "y", (long)(&y) - (long)(&h));
+
+    return 0;
+}
+
+int main(int argc, char * argv[]) {
+    test_struct_padding();
+    // test_struct_address();
+
+    return 0;
+}
+
+
+Execution result - test_struct_padding():
+
+stu_a: 8
+stu_b: 16
+stu_c: 24
+stu_d: 16
+stu_e: 16
+stu_f: 24
+stu_g: 4
+stu_h: 8
+Execution result - test_struct_address():
+
+stu_g: 4
+stu_h: 8
+stu_f: 24
+address of g: 0x7fffd63a95d0  // struct variable - address dividable by 16,
+address of h: 0x7fffd63a95e0  // struct variable - address dividable by 16,
+address of f1: 0x7fffd63a95f0 // struct variable - address dividable by 16,
+address of f2: 0x7fffd63a9610 // struct variable - address dividable by 16,
+address of x: 0x7fffd63a95dc  // non-struct variable - resides within the empty space between struct variable g & h.
+address of y: 0x7fffd63a95e8  // non-struct variable - resides within the empty space between struct variable h & f1.
+space between g and h: 16
+space between h and f1: 16
+space between f1 and f2: 32
+space between x and f2: -52
+space between g and x: 12
+space between x and y: 12
+space between h and y: 8
+
+Thus address start for each variable is g:d0 x:dc h:e0 y:e8
