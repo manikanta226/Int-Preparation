@@ -1,0 +1,38 @@
+reference : http://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html
+
+It's a common C hack to declare what can be called a variable length-array (where you define the size at allocation time
+
+Example:
+
+struct line {
+   int length;
+   char contents[0];
+ };
+
+ struct line *thisline = (struct line *)
+   malloc (sizeof (struct line) + this_length);
+ thisline->length = this_length;
+This way you have a structure definition of your data, which also stores the array length for obvious convecience purposes, but you're not constrained by the fixed size that is usually associated with a struct
+
+Example:
+
+#include<stdio.h>                                                               
+struct temp                                                                     
+{                                                                               
+    int c;                                                                      
+};                                                                              
+struct sai                                                                      
+{                                                                               
+    int a;                                                                      
+    struct temp sample[0] ;                                                     
+};                                                                              
+                                                                                
+int main()                                                                      
+{                                                                               
+    struct sai *b=(struct sai *)malloc(sizeof(struct sai)+(2*sizeof(struct temp))); 
+    b->sample[0].c=20;
+    b->sample[1].c=30;
+    printf("val=%d",b->sample[0].c);
+    printf("val=%d",b->sample[1].c);
+    return 0;
+}
