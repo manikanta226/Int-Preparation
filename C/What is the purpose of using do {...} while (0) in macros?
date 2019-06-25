@@ -1,0 +1,90 @@
+The do/while(0) pattern seen in many if not most macros in the Linux kernel and elsewhere has a specific purpose: It is the only construct in C that lets you define macros that always work the same way, so that a semicolon after your macro always has the same effect, regardless of how the macro is used (with particularly emphasis on the issue of nesting the macro in an if without curly-brackets).
+
+Let's consider an example:
+
+#define foo(x)  bar(x); baz(x)
+
+Say you used it like this:
+
+foo(wolf);
+
+This expands to:
+
+bar(wolf); baz(wolf);
+
+So far, so good. That does what you intended. But let's consider usage like this:
+
+if (!feral)
+    foo(wolf);
+
+
+This expands to:
+
+if (!feral)
+    bar(wolf); baz(wolf);
+
+
+Which is, if sanely formatted:
+
+if (!feral)
+    bar(wolf);
+baz(wolf);
+
+
+That likely isn't what you intended. As shown, it isn't possible to write multistatement macros that do the right thing in all situations. You can't make macros behave like functions—without do/while(0).
+
+Let's revisit our original macro, wrapped in do/while(0):
+
+#define foo(x)  do { bar(x); baz(x); } while (0)
+
+Now, this statement is functionally equivalent to the former. The do ensures the logic inside the curly-brackets executes, the while(0) ensures that happens but once. Same as without the loop. So what's different? Let's look at using the macro. Again:
+
+if (!feral)
+    foo(wolf);
+
+
+Which now becomes:
+
+if (!feral)
+    do { bar(wolf); baz(wolf); } while (0);
+
+
+Which is the same as:
+
+if (!feral) {
+    bar(wolf);
+    baz(wolf);
+}
+
+
+You might rejoin, why not just wrap the macro in curly-brackets? Why also have the do/while(0) logic?
+
+This is why. Consider:
+
+#define foo(x)  { bar(x); baz(x); }
+
+And:
+
+if (!feral)
+    foo(wolf);
+else
+    bin(wolf);
+
+
+This becomes:
+
+if (!feral) {
+    bar(wolf);
+    baz(wolf);
+};
+else
+    bin(wolf);
+
+
+Note the stray semicolon, which makes the else a dangling else. If you want people to be able to use your macro like a function and put semicolons where they belong, then this doesn't work.
+
+To speak to your examples, the first example probably does not need the do/while(0) pattern, although it might make sense to have that logic in its own scope (a set of nested curly-brackets) depending on what is being passed in for state_value. In Linux, all macros are generally wrapped in do/while(0) as a best practice. I do the same in my code.
+
+The second example lacks the do/while(0) pattern because it is just invoking another macro, which is itself already wrapped in do/while(0).
+
+In conclusion, macros in Linux and other codebases wrap their logic in do/while(0) because it ensures the macro always behaves the same, regardless of how semicolons and curly-brackets are used in the invoking code.
