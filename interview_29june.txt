@@ -1,0 +1,45 @@
+1st rnd:
+
+1. Boot sequence ?
+2. why uboot , why we cant start from kernel ?
+3. how init starts from kernel ? where is init process in RFS ?
+4. what are the issues u faced ?
+5. what is kernel module ? what happens when insmod ?
+6. what are character drivers ?
+7. how kernel knows which driver open should call ?
+8. what are elf files ? which sections it has ?
+9. If we configure kasan, what it will enable in kernel ?
+10. difference between .rodata, data and bss segments ?
+11. what is the output of the program ?
+
+int main()
+{
+    char *ptr="sai";
+    printf("ptr:%s \n",ptr);
+    *ptr="y";
+    printf("ptr:%s \n",ptr);
+}
+
+12. write a program to find big endian or little endian ?
+13. write a program for server which accepts 5 clients and by using shared data clients will fill inform to server.
+How you maintain synchronization ?
+14. when to use semaphore and mutex ?
+15. what is SPI and I2C ?
+16. difference between I2C and SPI ?
+17. How many devices we can connect on I2C and SPI ?
+
+
+2nd rnd:
+
+1. what are issues u faced so far , which one u feel difficult to solve ?
+2. which vulnerabilities u triggered ?
+3. Any idea on USB drivers ?
+4. linux driver architecture ?
+5. How do u debug the issue from kernel core dump ?
+6. If build is not user debug, if kernel crashes how to debug ?
+7. what is VFS ?
+8. what is the speed of I2C supports ?
+9. RTCpcf8563 what you configured ? what is the speed ? what is the communication type ?
+10. write the flow for I2C how prode and registration happens ?
+11. In kernel which is interesting ?
+12. which one u like most in the kernel ?
