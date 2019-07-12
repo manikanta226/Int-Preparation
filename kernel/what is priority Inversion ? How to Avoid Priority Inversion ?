@@ -1,0 +1,45 @@
+references :
+
+http://cmdlinelinux.blogspot.com/2013/12/priority-inversion-how-to-avoid-it.html
+https://opensourceforu.com/2019/04/how-to-avoid-priority-inversion-and-enable-priority-inheritance-in-linux-kernel-programming/
+https://lwn.net/Articles/178253/
+
+
+Let's take an example.
+
+Tasks:
+High Priority (H)
+Medium Priority (M)
+Low Priority (L)
+
+
+Shared resource:
+Shared between H & L protected by a lock (say semaphore):
+
+some_function()
+{
+   . . . . 
+   semaphore_lock(X) 
+   //critical section 
+   semaphore_unlock(X) 
+   . . . . 
+}
+Scenario: 1. L runs and aquires X
+2. Then H tries to access X while L has it, because of semaphore, H sleeps.
+3. M arrives, pre-empts L and runs. In effect, H & M were two processes waiting to run but M ran because H was waiting on lock and couldn't run.
+4. M finishes, H can't enter because L has the lock, so L runs.
+5. L finishes, relinquishes the lock. Now H gets the lock and executes.
+
+H had the highest priority but ran after the lower priority processes had run. This is Priority Inversion!
+
+
+How to avoid Priority Inversion
+
+1. Locking with interrupts disabled:
+This way M can't pre-empt L because pre-emption requires interrupt. Hence when L finishes, H & M are waiting, H will aquire the lock. After H is done executing, M will aquire it.
+
+2. Priority Ceiling:
+The locking variable (or the process involved in providing locking mechanism) has its own (higher than L & M here) priority. When any process acquires the lock, it gets this priority. Hence L gets this higher priority (atleast higher than M), so M will not be able to pre-empt it. After L is done executing, H will run and after that M.
+
+3. Priority Inheritance:
+When a low priority process has is running and has a lock, and if a high priority process tries to acquire the lock, the priority of the low priority process is raised to the priority of the high priority process. That is, if L is running and and has the lock, when H tries to acquire it, L's priority will be raised to that of the H for the duration L holds the lock. This way, M can't pre-emp it. After, L finishes, H runs and acquires the lock. After H is done, M runs preserving the priority ordering.
