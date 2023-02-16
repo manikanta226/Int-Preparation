@@ -1,0 +1,59 @@
+#include<stdio.h>
+int main(void)
+{    char *ptr = "Linux";    printf("\n [%c] \n",*ptr++);    printf("\n [%c] \n",*ptr);    return 0;
+}
+
+
+#include <stdio.h>
+#define MULTIPLY(a, b) a*b
+int main()
+{    printf("%d", MULTIPLY(2+3, 3+5));    return 0;
+}
+
+
+What does the following code output and why?
+void foo(void)
+{
+unsigned int a = 6;
+int b = -20;(a+b > 6) ? puts(“> 6”) : puts(“<= 6”);}
+
+
+Detect integer overflowint add(int* result, int a, int b)
+{
+*result = a + b;
+/*Add single condition here to determine integer overflow*/
+return 0;
+}
+
+
+Write the 3 macros to set, clear, toggle the bit of given number
+
+
+Write a program to multiply a given number with 3.5 using bitwise operation.
+
+Write a function to take integer input and check if an integer is a power of 2 or not.
+
+
+Comment on the whats wrong in below ISR routine code.static double compute_area_isr(double radius)
+{    double area = PI * radius * radius;        pr_info(“nArea = %f”, area);    return area;
+}
+
+
+Bacteria is known to multiply rapidly. A container contains only 1 bacteria on the first day and there are twice as many on the next day.
+in this manner the number of bacteria doubles itself everyday. Assuming from the container size it will be full of bacteria on 10th day,
+on which day container will be 1/4?
+
+
+If 5 tyres were used equally on a car which has traveled 20,000 KMs, how many KMs each tyre was used, if all tyres were equally used during 20000 KM travel?
+
+
+There are total 9 balls, among them 8 are identical and one is heavier. What are the minimum number of weights required to find out the ball with heavier weight?
+
+
+we have two ropes which are not identical in length (thickness varies across length) - but each rope takes 1 hr if its burnt one side. How to measure 15mins?
+
+
+
+
+We have two ropes which are not identical in length (thickness varies across length) - but each rope takes 1 hr if its burnt one side. How to measure 15mins?
+
